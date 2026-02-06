@@ -1,0 +1,57 @@
+# data
+*.h265
+*.mp4
+*.svo
+*.svo2
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Output files
+*.h265
+*.h264
+*.mp4
+*.avi
+*_extracted.*
+*_video.*
+*_sensors.*
+test*.svo2
+
+# uv
+.python-version
