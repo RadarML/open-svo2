@@ -3,31 +3,28 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "svo2-extract"
+name = "open-svo2"
 version = "0.1.0"
-description = "Extract raw H.265 video and sensor data from Stereolabs SVO2 (MCAP) files"
+description = "Open-source reverse-engineering of the StereoLabs SVO2 file format."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
-    {name = "Tianshu", email = "tianshu@example.com"},
+    {name = "Tianshu Huang", email = "tianshu2@andrew.cmu.edu"},
 ]
-keywords = ["svo2", "stereolabs", "mcap", "h265", "hevc", "video", "extraction"]
+keywords = ["svo2", "stereolabs", "mcap", "extraction"]
 classifiers = [
-    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Multimedia :: Video",
-    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
+    "jaxtyping>=0.3.7",
     "mcap>=1.0.0",
+    "toml>=0.10.2",
+    "wadler-lindig>=0.1.7",
 ]
 
 [project.optional-dependencies]
@@ -37,31 +34,13 @@ dev = [
     "ruff>=0.1.0",
 ]
 
-[project.scripts]
-svo2-extract = "svo2_extract.cli:main"
-
-[project.urls]
-Homepage = "https://github.com/tianshu/svo2-extract"
-Repository = "https://github.com/tianshu/svo2-extract"
-Issues = "https://github.com/tianshu/svo2-extract/issues"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/svo2_extract"]
-
-[tool.hatch.build.targets.sdist]
-include = [
-    "/src",
-    "/README.md",
-    "/pyproject.toml",
-]
-
 [tool.black]
 line-length = 100
-target-version = ['py38']
+target-version = ['py311']
 
 [tool.ruff]
 line-length = 100
-target-version = "py38"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]

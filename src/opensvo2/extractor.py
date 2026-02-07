@@ -97,8 +97,13 @@ def extract_channel(svo2_file, channel_topic, output_file, verbose=True):
         message_count = 0
         total_bytes = 0
 
+        breakpoint()
+
         with open(output_file, "wb") as out:
             for schema, channel, message in reader.iter_messages():
+                if channel.id == 1:
+                    breakpoint()
+
                 if channel.id == target_channel_id and message.data:
                     out.write(message.data)
                     message_count += 1
