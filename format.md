@@ -1,11 +1,13 @@
-# SVO Format Reverse Engineering
+## SVO2 Format
 
-`.svo2` files are MCAP files. They have 5 channels:
+`.svo2` files are MCAP files with 5 topics:
 - `svo_header`: contains the SVO metadata in JSON format. It has only 1 message near the beginning of the file.
 - `svo_footer`: contains the SVO footer in JSON format. It has only 1 message near the end of the file.
-- `Camera_SNxxxxxx/side_by_side`: contains the video stream encoded as h264/h265, with left and right stereo images concatenated side by side (i.e., along the width axis).
-- `Camera_SNxxxxxx/sensors`: TODO
-- `Camera_SNxxxxxx/sensors_integrated`: TODO
+- `Camera_SN{camera_serial_number}/side_by_side`: contains the video stream encoded as h264/h265, with left and right stereo images concatenated side by side (i.e., along the width axis).
+- `Camera_SN{camera_serial_number}/sensors`: TODO
+- `Camera_SN{camera_serial_number}/sensors_integrated`: TODO
+
+Based on our analysis, `.svo2` files do not appear to have any gaps between messages which could indicate data stored outside of MCAP message payloads.
 
 ## Header
 
@@ -44,7 +46,7 @@ Header format: see `metadata.SVO2Header` for additional details.
 
 ## Footer
 
-The footer is a JSON object with one entry for each time series stream (`Camera_SN{}/side_by_side`, `Camera_SN{}/sensors`, `Camera_SN{}/sensors_integrated`).
+The footer is a JSON object with one entry for each time series stream (`Camera_SN{camera_serial_number}/side_by_side`, `Camera_SN{camera_serial_number}/sensors`, `Camera_SN{camera_serial_number}/sensors_integrated`).
 - Each entry is a base64-encoded array of timestamps for the messages in the corresponding stream.
 - The timestamps are stored as 64-bit integers representing milliseconds since the Unix epoch. These are presumably unsigned integers.
 
@@ -84,3 +86,5 @@ Based on analysis of a sample h265 svo recording, we believe that video frames h
 | 0x0dfe5c  | END     | |
 
 ## Sensor Data
+
+TODO
