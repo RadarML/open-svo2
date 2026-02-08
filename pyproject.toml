@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
     "jaxtyping>=0.3.7",
     "mcap>=1.0.0",
+    "scipy>=1.17.0",
     "toml>=0.10.2",
     "wadler-lindig>=0.1.7",
 ]

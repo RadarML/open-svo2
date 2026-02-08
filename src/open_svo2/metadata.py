@@ -10,7 +10,7 @@ from typing import Self
 
 import numpy as np
 from jaxtyping import UInt64
-from mcap.reader import McapReader
+from mcap.reader import McapReader, make_reader
 
 logger = logging.getLogger("opensvo2.metadata")
 
@@ -24,6 +24,12 @@ class SVO2Header(Structure):
         - Unconfirmed fields are prefixed with '_unsure_'
         - Likely correct fields are prefixed with '_likely_'
 
+    !!! warning
+
+        The parsed transformation matrix does not match the stereo
+        transformation values given by the Zed SDK. The exact meaning and
+        relationship is currently unknown.
+
     Attributes:
         width: Image width in pixels.
         height: Image height in pixels.
@@ -34,10 +40,6 @@ class SVO2Header(Structure):
         _unsure_exposure_mode: Exposure control mode.
         _likely_exposure_time: Likely exposure time (units unknown, observed: 1000).
         _likely_camera_model: Camera model/SKU (e.g., 2001 = ZED 2).
-        r00, r01, r02, tx, r10, r11, r12, ty, r20, r21, r22, tz:
-            3x4 transformation matrix [R|t] from right camera to left camera.
-            Units and exact coordinate system are unconfirmed. NOTE: These do
-            NOT directly match STEREO config Baseline/TY/TZ values.
         _unsure_ts_sec: Timestamp seconds (often 0).
         _unsure_ts_nsec: Timestamp nanoseconds (often 0).
         _unsure_imu_status: IMU-related status flag.
@@ -139,14 +141,22 @@ class SVO2Metadata:
         return header, footer
 
     @classmethod
-    def from_reader(cls, reader: McapReader) -> Self:
-        """Extract metadata from the MCAP reader."""
-        summary = reader.get_summary()
+    def from_mcap(cls, mcap: McapReader | str) -> Self:
+        """Extract metadata from the MCAP reader.
+
+        Args:
+            mcap: file path to a svo2 mcap file or a `McapReader` handle.
+        """
+        if isinstance(mcap, str):
+            with open(mcap, "rb") as f:
+                return cls.from_mcap(make_reader(f))
+
+        summary = mcap.get_summary()
         if summary is None:
             raise ValueError("Failed to read summary from the SVO2 file.")
         summary_short = {v.topic: k for k, v in summary.channels.items()}
 
-        header, footer = cls._get_raw_data(reader)
+        header, footer = cls._get_raw_data(mcap)
         timestamps = {
             k: np.array(v, dtype=np.uint64)
             for k, v in footer.items()}

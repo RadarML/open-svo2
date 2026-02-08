@@ -68,6 +68,11 @@ class Intrinsics:
 class StereoIntrinsics:
     """Stereo camera pair parameters.
 
+    !!! info
+
+        Zed uses a convention where the left camera is transformed relative
+        to the right camera which is considered the reference frame.
+
     Attributes:
         left: Intrinsics for the left camera.
         right: Intrinsics for the right camera.
