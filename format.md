@@ -78,8 +78,8 @@ Based on analysis of a sample h265 svo recording, we believe that video frames h
 |           |         |   [10-13] unknown: i32 = 2 |
 |           |         |   [14-17] unknown: i32 = -1 |
 |           |         |   [18-1F] timestamp: u64 = 1738434526000 ns |
-|           |         |   [20-23] h265_size: u32 = 917020 |
-|           |         |   [24-27] unknown: i32 = {0, 3} |
+|           |         |   [20-23] frame_size: u32 = 917020 |
+|           |         |   [24-27] frame_type: i32 = {0 (i-frame), 3 (key-frame)} |
 |           |         |   [28-2F] last_keyframe_index: i32 |
 |           |         |   [30-33] frame_idx: int32 = 0, 1, 2, ... |
 |           |         |   [34-37] unknown: keyframe id? changes to a seemingly random value every keyframe |
