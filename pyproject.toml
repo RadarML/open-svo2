@@ -21,10 +21,12 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
+    "av>=16.1.0",
     "jaxtyping>=0.3.7",
     "mcap>=1.0.0",
     "scipy>=1.17.0",
     "toml>=0.10.2",
+    "tyro>=1.0.6",
     "wadler-lindig>=0.1.7",
 ]
 

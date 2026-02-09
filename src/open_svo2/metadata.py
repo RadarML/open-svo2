@@ -4,7 +4,7 @@ import base64
 import json
 import logging
 import re
-from ctypes import Structure, c_float, c_uint32, sizeof
+from ctypes import Structure, c_float, c_int32, c_int64, c_uint32, c_uint64, sizeof
 from dataclasses import dataclass
 from typing import Self
 
@@ -31,7 +31,7 @@ class SVO2Header(Structure):
         relationship is currently unknown.
 
     Attributes:
-        width: Image width in pixels.
+        width: Image width in pixels (for a single camera).
         height: Image height in pixels.
         serial_number: Camera serial number (e.g., 40735594).
         fps: Frames per second.
@@ -44,7 +44,6 @@ class SVO2Header(Structure):
         _unsure_ts_nsec: Timestamp nanoseconds (often 0).
         _unsure_imu_status: IMU-related status flag.
         w_scale: Scale factor (typically 1.0).
-
         _likely_lens_id: Lens type identifier (observed: 5).
         _unsure_isp_gain: ISP gain setting.
         _unsure_isp_wb_r: White balance red channel.
@@ -194,3 +193,37 @@ class SVO2Metadata:
                     logger.warning(
                         f"Serial number mismatch: channel {channel} "
                         f"vs {self.header.serial_number} (from header)")
+
+
+class SVO2FrameFooter(Structure):
+    """Memory mapping for the SVO2 stereo frame footer (56 bytes, 12 fields).
+
+    Attributes:
+        width: Image width in pixels.
+        height: Image height in pixels.
+        _unknown_magic: Magic number (0x5c002c00).
+        _unknown_1: Unknown constant (1).
+        _unknown_2: Unknown constant (2).
+        _unknown_3: Unknown constant (-1).
+        timestamp: Timestamp in nanoseconds.
+        payload_size: Size of H.264/H.265 payload in bytes.
+        frame_type: 3 for key-frame, 0 for i-frame.
+        last_keyframe_index: Index of the last keyframe.
+        frame_id: Sequential frame index.
+        _unsure_keyframe_id: Possible keyframe ID.
+    """
+
+    _fields_ = [
+        ("width", c_uint32),
+        ("height", c_uint32),
+        ("_unknown_magic", c_uint32),
+        ("_unknown_1", c_int32),
+        ("_unknown_2", c_int32),
+        ("_unknown_3", c_int32),
+        ("timestamp", c_uint64),
+        ("payload_size", c_uint32),
+        ("frame_type", c_int32),
+        ("last_keyframe_index", c_int32),
+        ("frame_id", c_uint32),
+        ("_unsure_keyframe_id", c_int32),
+    ]

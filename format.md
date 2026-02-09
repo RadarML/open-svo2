@@ -1,4 +1,4 @@
-## SVO2 Format
+# SVO2 Format Reverse Engineering
 
 `.svo2` files are MCAP files with 5 topics:
 - `svo_header`: contains the SVO metadata in JSON format. It has only 1 message near the beginning of the file.
@@ -55,9 +55,9 @@ The footer is a JSON object with one entry for each time series stream (`Camera_
 The video payload is stored as a standard h264/h265 bitstream, with left and right cameras concatenated side by side (i.e., along the width axis). Each encoded key-frame or i-frame is stored as a separate message.
 
 Based on analysis of a sample h265 svo recording, we believe that video frames have the following structure:
-- An 8-byte header containing a 32-bit total size and a 32-bit H.265 size (excluding the header)
+- An 8-byte header containing a 32-bit total size (excluding itself) and a 32-bit H.265 size (excluding the header and footer)
 - Standard h264/h265 header and payload
-- A 56-byte trailer containing metadata about the frame (resolution, timestamp, frame type, etc)
+- A 56-byte footer containing metadata about the frame (resolution, timestamp, frame type, etc)
 
 | Offset    | Size    | Content |
 | ----------|---------|-------------------------------------------------- |
@@ -71,18 +71,18 @@ Based on analysis of a sample h265 svo recording, we believe that video frames h
 | 0x00005C  | 7       | PPS NAL unit |
 | 0x000063  | 4       | 0x00000001 - H.265 start code |
 | 0x000067  | 916981  | IDR slice data (video payload) |
-| 0x0dfe24  | 56      | TRAILER (metadata): |
-|           |         |   [00-03] width: u32 = 3840 |
+| 0x0dfe24  | 56      |   [00-03] width: u32 = 3840 |
 |           |         |   [04-07] height: u32 = 1080 |
-|           |         |   [08-0B] unknown = 0x5c002c00 |
+|           |         |   [08-0B] unknown: unknown = 0x5c002c00 |
 |           |         |   [0C-0F] unknown: i32 = 1 |
 |           |         |   [10-13] unknown: i32 = 2 |
 |           |         |   [14-17] unknown: i32 = -1 |
-|           |         |   [18-1F] timestamp: u64 = 1738434526000 ms |
+|           |         |   [18-1F] timestamp: u64 = 1738434526000 ns |
 |           |         |   [20-23] h265_size: u32 = 917020 |
-|           |         |   [24-27] unknown: i32 = 3 |
-|           |         |   [28-2F] unknown: i32 = 0 |
-|           |         |   [30-37] timestamp: u64 = 1738434526000 ms |
+|           |         |   [24-27] unknown: i32 = {0, 3} |
+|           |         |   [28-2F] last_keyframe_index: i32 |
+|           |         |   [30-33] frame_idx: int32 = 0, 1, 2, ... |
+|           |         |   [34-37] unknown: keyframe id? changes to a seemingly random value every keyframe |
 | 0x0dfe5c  | END     | |
 
 ## Sensor Data
