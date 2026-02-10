@@ -2,8 +2,10 @@
 
 from .convert import mp4_from_svo2
 from .intrinsics import Intrinsics, StereoIntrinsics
-from .metadata import SVO2Header, SVO2Metadata
+from .metadata import FrameFooter, Header, Metadata
 
 __all__ = [
     "mp4_from_svo2",
-    "Intrinsics", "StereoIntrinsics", "SVO2Metadata", "SVO2Header"]
+    "Intrinsics", "StereoIntrinsics",
+    "FrameFooter", "Metadata", "Header"
+]

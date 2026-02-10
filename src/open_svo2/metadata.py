@@ -4,18 +4,18 @@ import base64
 import json
 import logging
 import re
-from ctypes import Structure, c_float, c_int32, c_int64, c_uint32, c_uint64, sizeof
+from ctypes import Structure, c_float, c_int32, c_uint32, c_uint64, sizeof
 from dataclasses import dataclass
 from typing import Self
 
 import numpy as np
-from jaxtyping import UInt64
+from jaxtyping import Float32, UInt64
 from mcap.reader import McapReader, make_reader
 
 logger = logging.getLogger("opensvo2.metadata")
 
 
-class SVO2Header(Structure):
+class Header(Structure):
     """Memory mapping for the SVO2 binary header (128 bytes, 32 fields).
 
     !!! info "Field naming conventions"
@@ -94,7 +94,7 @@ class SVO2Header(Structure):
 
 
 @dataclass
-class SVO2Metadata:
+class Metadata:
     """SVO2 file metadata extracted from MCAP container.
 
     Attributes:
@@ -113,13 +113,13 @@ class SVO2Metadata:
 
     imu_frequency: float
     zed_sdk_version: str
-    calib_acc_matrix1: np.ndarray
-    calib_acc_matrix2: np.ndarray
-    calib_gyro_matrix1: np.ndarray
-    calib_gyro_matrix2: np.ndarray
-    header: SVO2Header
+    calib_acc_matrix1: Float32[np.ndarray, "3 3"]
+    calib_acc_matrix2: Float32[np.ndarray, "3 3"]
+    calib_gyro_matrix1: Float32[np.ndarray, "3 3"]
+    calib_gyro_matrix2: Float32[np.ndarray, "3 3"]
+    header: Header
     version: str
-    channels: dict
+    channels: dict[str, int]
     timestamps: dict[str, UInt64[np.ndarray, "?N"]]
 
     @staticmethod
@@ -132,10 +132,10 @@ class SVO2Metadata:
     @staticmethod
     def _get_raw_data(reader: McapReader):
         footer_stream = reader.iter_messages(topics=["svo_footer"])
-        footer = SVO2Metadata._read_json_msg(footer_stream, topic="svo_footer")
+        footer = Metadata._read_json_msg(footer_stream, topic="svo_footer")
 
         header_stream = reader.iter_messages(topics=["svo_header"])
-        header = SVO2Metadata._read_json_msg(header_stream, topic="svo_header")
+        header = Metadata._read_json_msg(header_stream, topic="svo_header")
 
         return header, footer
 
@@ -159,7 +159,7 @@ class SVO2Metadata:
         timestamps = {
             k: np.array(v, dtype=np.uint64)
             for k, v in footer.items()}
-        decoded_header = SVO2Header.from_base64(header.get("header", ""))
+        decoded_header = Header.from_base64(header.get("header", ""))
 
         # Parse calibration data (each is 18 float32s = two 3x3 matrices)
         calib_acc_raw = base64.b64decode(header.get("Calib_acc", ""))
@@ -195,7 +195,7 @@ class SVO2Metadata:
                         f"vs {self.header.serial_number} (from header)")
 
 
-class SVO2FrameFooter(Structure):
+class FrameFooter(Structure):
     """Memory mapping for the SVO2 stereo frame footer (56 bytes, 12 fields).
 
     Attributes:

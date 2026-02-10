@@ -1,0 +1,11 @@
+.md-typeset table:not([class]) th,
+.md-typeset table:not([class]) td {
+    padding: 4px 12px;
+}
+.md-typeset pre > code {
+    padding: 0.3em 1em;
+}
+.md-typeset .doc-overloads pre, .md-typeset .doc-signature pre {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}

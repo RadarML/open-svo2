@@ -10,7 +10,7 @@ import numpy as np
 from jaxtyping import UInt32, UInt64
 from mcap.reader import McapReader, make_reader
 
-from .metadata import SVO2FrameFooter, SVO2Metadata
+from .metadata import FrameFooter, Metadata
 
 logger = logging.getLogger("open_svo2.convert")
 
@@ -65,7 +65,7 @@ def _check_timestamps(
 
 
 def mp4_from_svo2(
-    mcap: McapReader | str, output: str, metadata: SVO2Metadata | None = None
+    mcap: McapReader | str, output: str, metadata: Metadata | None = None
 ) -> UInt32[np.ndarray, "N"]:
     """Extract video stream from SVO2 MCAP into a standard MP4 container.
 
@@ -82,7 +82,7 @@ def mp4_from_svo2(
         with open(mcap, "rb") as f:
             return mp4_from_svo2(make_reader(f), output)
     if metadata is None:
-        metadata = SVO2Metadata.from_mcap(mcap)
+        metadata = Metadata.from_mcap(mcap)
 
     stream_iter = mcap.iter_messages(
         topics=[f"Camera_SN{metadata.header.serial_number}/side_by_side"])
@@ -96,7 +96,7 @@ def mp4_from_svo2(
     _, frame_size = struct.unpack("<II", msg.data[:8])
     payload = msg.data[8 : 8 + frame_size]
     codec_name = detect_codec(payload)
-    start_ts = SVO2FrameFooter.from_buffer_copy(
+    start_ts = FrameFooter.from_buffer_copy(
         msg.data[8 + frame_size:]).timestamp
 
     timestamps = []
@@ -117,7 +117,7 @@ def mp4_from_svo2(
         for i, (_, _, msg) in enumerate(message_generator()):
             _, size = struct.unpack("<II", msg.data[:8])
             payload = msg.data[8 : 8 + size]
-            footer = SVO2FrameFooter.from_buffer_copy(msg.data[8 + size:])
+            footer = FrameFooter.from_buffer_copy(msg.data[8 + size:])
             timestamps.append(footer.timestamp)
             keyframes.append(footer.last_keyframe_index)
 
