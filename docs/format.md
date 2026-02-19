@@ -7,8 +7,8 @@
 | `svo_header` | Contains the SVO metadata in JSON format. It has only one message near the beginning of the file. |
 | `svo_footer` | Contains the SVO footer in JSON format. It has only one message near the end of the file. |
 | `Camera_SN(?<sn>\d+)/side_by_side` | Contains the video stream encoded as H.264/H.265, with left and right stereo images concatenated side-by-side (along the width axis). |
-| `Camera_SN(?<sn>\d+)/sensors` | TODO |
-| `Camera_SN(?<sn>\d+)/sensors_integrated` | TODO |
+| `Camera_SN(?<sn>\d+)/sensors` | IMU and temperature sensor data. |
+| `Camera_SN(?<sn>\d+)/sensors_integrated` | IMU and temperature sensor data which has been integrated (?) to match the camera data rate (?). |
 
 Here, `(?<sn>\d+)` refers to the camera serial number, which is expected to be a decimal number.
 
