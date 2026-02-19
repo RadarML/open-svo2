@@ -1,5 +1,7 @@
 """SVO file conversion."""
 
+import base64
+import json
 import logging
 import struct
 from fractions import Fraction
@@ -10,6 +12,7 @@ import numpy as np
 from jaxtyping import Float64, UInt32, UInt64
 from mcap.reader import McapReader, make_reader
 
+from .imu import IMUData
 from .metadata import FrameFooter, Metadata
 
 logger = logging.getLogger("open_svo2.convert")
@@ -208,3 +211,44 @@ def raw_from_svo2(
         timestamps_ns / 1e9,
         np.array(keyframes, dtype=np.uint32),
     )
+
+
+def imu_from_svo2(
+    mcap: McapReader | str, metadata: Metadata | None = None
+) -> dict[str, np.ndarray]:
+    """Extract raw IMU data from SVO2 MCAP into a .npz file.
+
+    Args:
+        mcap: file path to a svo2 mcap file or a `McapReader` handle.
+        metadata: Optional pre-parsed metadata. If not provided, it will be
+            extracted from the MCAP reader.
+
+    Returns:
+        A dictionary containing `timestamps`, `angular_velocity`, and
+            `linear_acceleration` arrays.
+    """
+    if isinstance(mcap, str):
+        with open(mcap, "rb") as f:
+            return imu_from_svo2(make_reader(f), metadata=metadata)
+    if metadata is None:
+        metadata = Metadata.from_mcap(mcap)
+
+    topic = f"Camera_SN{metadata.header.serial_number}/sensors"
+    stream_iter = mcap.iter_messages(topics=[topic])
+
+    timestamps = []
+    angular_velocity = []
+    linear_acceleration = []
+
+    for _, _, msg in stream_iter:
+        raw = base64.b64decode(json.loads(msg.data)["data"])
+        imu = IMUData.from_raw_data(raw)
+        timestamps.append(imu.timestamp)
+        angular_velocity.append(imu.avel)
+        linear_acceleration.append(imu.accel)
+
+    return {
+        "timestamps": np.array(timestamps, dtype=np.float64),
+        "angular_velocity": np.array(angular_velocity, dtype=np.float32),
+        "linear_acceleration": np.array(linear_acceleration, dtype=np.float32)
+    }

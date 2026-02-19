@@ -18,10 +18,10 @@ Based on our analysis, `.svo2` files do not appear to have any gaps between mess
 
 The header is a JSON object with the following fields:
 
-- `Calib_acc`: TODO
-- `Calib_gyro`: TODO
-- `imu_frequency_hz`: IMU measurement frequency
-- `zed_sdk_version`: The version of the Zed SDK used to record the SVO as a string.
+- `Calib_acc`: Base64-encoded binary containing two 3×3 float32 matrices (72 bytes = 18 floats). The first matrix appears to contain bias correction terms; the second is a scale/cross-axis calibration matrix close to the identity.
+- `Calib_gyro`: Base64-encoded binary containing two 3×3 float32 matrices (72 bytes = 18 floats). Same layout as `Calib_acc`: first matrix contains gyroscope offset terms, second is a full scale+cross-axis calibration matrix.
+- `IMU_frequency`: IMU measurement frequency in Hz (e.g., 200.0 for ZED X).
+- `ZED_SDK_version`: The version of the Zed SDK used to record the SVO as a string (e.g., `"5.0.0"`).
 - `header`: A base64-encoded binary structure.
 
 Header format: see [`metadata.Header`][open_svo2.metadata.Header] for additional details.
@@ -101,4 +101,58 @@ See [`metadata.FrameFooter`][open_svo2.metadata.FrameFooter] for additional deta
 
 ## Sensor Data
 
-TODO
+Both `Camera_SN(?<sn>\d+)/sensors` and `Camera_SN(?<sn>\d+)/integrated_sensors` topics use the same 360-byte binary format, wrapped in a JSON object with a single `data` field containing a base64-encoded payload:
+
+```json
+{"data": "<base64>"}
+```
+
+The two topics differ only in the first 8 bytes (a type byte differs: `0x33` for `/sensors`, `0x26` for `/integrated_sensors`) and in a few fields that are zero in `/sensors` but non-zero in `/integrated_sensors` (noted below).
+
+The `/sensors` topic streams raw IMU data at the IMU sampling rate (200 Hz for ZED X). The `/integrated_sensors` topic streams data at the camera frame rate (~30 fps), with IMU readings synchronized to camera frame timestamps.
+
+All multi-byte values are **little-endian**.
+
+??? info "Message Format"
+
+    | Offset | Size | Type | Content |
+    | ------ | ---- | ---- | ------- |
+    | 0x000 | 1 | u8 | unknown: constant `0x01` |
+    | 0x001 | 1 | u8 | topic_type: `0x33` = `/sensors`, `0x26` = `/integrated_sensors` |
+    | 0x002 | 2 | u16 | unknown: constant `0xd6f5` |
+    | 0x004 | 4 | u32 | unknown: constant `0x0000fffe` |
+    | 0x008 | 8 | u64 | timestamp_boot_ns: internal monotonic clock timestamp in nanoseconds (not Unix epoch; differences match MCAP log_time) |
+    | 0x010 | 8 | u64 | timestamp_unix_ns: Unix epoch timestamp in nanoseconds; identical to MCAP log_time |
+    | 0x018 | 32 | u8[32] | unknown: constant zeros |
+    | 0x038 | 4 | u32 | imu_new_sample: `1` when IMU DMP produced a new quaternion estimate, `0` otherwise |
+    | 0x03C | 16 | f32[4] | orientation: quaternion (x, y, z, w); unit quaternion representing IMU orientation |
+    | 0x04C | 12 | f32[3] | orientation_covariance_diagonal: (x, y, z) diagonal of orientation covariance matrix; zeros in `/sensors`, non-zero in `/integrated_sensors` |
+    | 0x058 | 12 | f32[3] | angular_velocity_uncalibrated: calibrated gyroscope (x, y, z) in deg/s |
+    | 0x064 | 12 | f32[3] | linear_acceleration_uncalibrated: calibrated accelerometer (x, y, z) in m/s² |
+    | 0x070 | 12 | f32[3] | angular_velocity: raw gyroscope (x, y, z) in deg/s, without bias/cross-axis correction |
+    | 0x07C | 12 | f32[3] | linear_acceleration: raw accelerometer (x, y, z) in m/s², without scale correction |
+    | 0x088 | 12 | f32[3] | angular_velocity_covariance_diagonal: (x, y, z) diagonal of gyro covariance (rad²/s²); constant per recording |
+    | 0x094 | 12 | f32[3] | linear_acceleration_covariance_diagonal: (x, y, z) diagonal of accel covariance (m²/s⁴); constant per recording |
+    | 0x0A0 | 64 | f32[16] | unknown: 16 very small floats (~1e-8 to ~1e-6), varying; possibly 4×4 orientation covariance |
+    | 0x0E0 | 4 | u32 | unknown: constant `0x00000100` in `/sensors`, differs in `/integrated_sensors` |
+    | 0x0E4 | 4 | f32 | temperature: IMU temperature in °C |
+    | 0x0E8 | 4 | f32 | unknown: `0.0` in `/sensors`; a large float (~1e10) in `/integrated_sensors` |
+    | 0x0EC | 24 | f32[6] | unknown: 6 NaN values (mixed positive `0x7fc00000` and negative `0xffc00000` NaN); possibly unavailable magnetometer x,y,z uncalibrated + calibrated, or temperature sensor slots |
+    | 0x104 | 4 | u32 | unknown: constant `0x00000004` |
+    | 0x108 | 60 | u8[60] | unknown: mix of zeros and special values; 1 NaN (`0x7fc00000`) at `0x110`; `0x3f800000` (1.0f) at `0x120` in `/sensors`, a large float (~1e10) in `/integrated_sensors`; 2 NaN values at `0x124`–`0x12B` |
+    | 0x144 | 4 | u8[4] | unknown: constant bytes `0x64 0x00 0x07 0x00` (reads as u16 pair: 100, 7) |
+    | 0x148 | 16 | u8[16] | unknown: constant zeros |
+    | 0x158 | 4 | u32 | unknown: constant `0x00000001` |
+    | 0x15C | 4 | f32 | effective_rate: IMU effective sampling rate as a fraction of the nominal rate (observed ~0.990–1.000) |
+    | 0x160 | 8 | u8[8] | unknown: constant zeros |
+
+!!! note "Confirmed fields"
+
+    The following fields have been confirmed against ZED SDK reference output:
+
+    - `timestamp_unix_ns` at `0x010`: exactly matches MCAP `log_time` for all messages (zero error across 24,623 messages)
+    - `angular_velocity` at `0x058`: matches `SensorsData.imu.angular_velocity`
+    - `linear_acceleration` at `0x064`: matches `SensorsData.imu.linear_acceleration`
+    - `angular_velocity_covariance_diagonal` at `0x088`: matches `SensorsData.imu.angular_velocity_covariance` diagonal
+    - `linear_acceleration_covariance_diagonal` at `0x094`: matches `SensorsData.imu.linear_acceleration_covariance` diagonal
+    - `temperature` at `0x0E4`: physically consistent (42.25°C for ZED X under normal operation)
