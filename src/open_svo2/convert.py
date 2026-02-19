@@ -7,7 +7,7 @@ from typing import Literal
 
 import av
 import numpy as np
-from jaxtyping import UInt32, UInt64
+from jaxtyping import Float64, UInt32, UInt64
 from mcap.reader import McapReader, make_reader
 
 from .metadata import FrameFooter, Metadata
@@ -145,3 +145,66 @@ def mp4_from_svo2(
     _check_timestamps(timestamps_meta, timestamps)
 
     return np.array(keyframes, dtype=np.uint32)
+
+
+def raw_from_svo2(
+    mcap: McapReader | str, output: str, metadata: Metadata | None = None
+) -> tuple[
+    UInt64[np.ndarray, "N+1"],
+    Float64[np.ndarray, "N"],
+    UInt32[np.ndarray, "N"]
+]:
+    """Extract raw video frames from SVO2 MCAP into a binary file.
+
+    Raw frames are concatenated to the output file; this should be readable
+    with ffmpeg.
+
+    Args:
+        mcap: file path to a svo2 mcap file or a `McapReader` handle.
+        output: file path to the output file.
+        metadata: Optional pre-parsed metadata. If not provided, it will be
+            extracted from the MCAP reader.
+
+    Returns:
+        Byte offsets of frame boundaries.
+        Timestamps in seconds (Float64).
+        Index of the last keyframe, as recorded by the frame footer.
+
+    """
+    if isinstance(mcap, str):
+        with open(mcap, "rb") as f:
+            return raw_from_svo2(make_reader(f), output, metadata)
+    if metadata is None:
+        metadata = Metadata.from_mcap(mcap)
+
+    stream_iter = mcap.iter_messages(
+        topics=[f"Camera_SN{metadata.header.serial_number}/side_by_side"])
+
+    offsets = []
+    timestamps = []
+    keyframes = []
+    byte_offset = 0
+
+    with open(output, "wb") as f:
+        for _, _, msg in stream_iter:
+            _, size = struct.unpack("<II", msg.data[:8])
+            payload = msg.data[8 : 8 + size]
+            footer = FrameFooter.from_buffer_copy(msg.data[8 + size:])
+
+            offsets.append(byte_offset)
+            timestamps.append(footer.timestamp)
+            keyframes.append(footer.last_keyframe_index)
+
+            f.write(payload)
+            byte_offset += len(payload)
+
+    timestamps_ns = np.array(timestamps, dtype=np.uint64)
+    timestamps_meta = metadata.timestamps[
+        f"Camera_SN{metadata.header.serial_number}/side_by_side"]
+    _check_timestamps(timestamps_meta, timestamps_ns)
+
+    return (
+        np.array(offsets, dtype=np.uint64),
+        timestamps_ns / 1e9,
+        np.array(keyframes, dtype=np.uint32),
+    )
