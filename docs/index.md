@@ -19,6 +19,23 @@ The `open_svo2` library provides tools for reading raw video and sensor data fro
     open_svo2 = { path = "open-svo2" }
     ```
 
+## Usage
+
+In addition to the [Python API](api.md), the `svo2` command-line tool can be used to convert SVO2 files to standard formats. For example, to extract the raw H.265 video stream:
+
+```sh
+svo2 recording.svo2 output.h265
+```
+
+The output format is inferred from the file extension, or can be specified explicitly with `--mode`. Three modes are currently supported:
+
+| Mode | Description |
+| ---- | ----------- |
+| `mp4` | Extract the raw H.265 video stream and save it as an MP4 file. |
+| `h265` | Extract the raw H.265 video stream and save it as a raw H.265 bitstream. |
+| `npz` | Extract the raw IMU data and save it as a NumPy archive. |
+
+
 ## Why use this tool?
 
 The official Stereolabs SDK only provides decoded frames through `retrieveImage()`. This tool allows you to:

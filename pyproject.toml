@@ -24,11 +24,16 @@ dependencies = [
     "av>=16.1.0",
     "jaxtyping>=0.3.7",
     "mcap>=1.0.0",
+    "numpy>=1.24",
+    "rich>=13.0",
     "scipy>=1.17.0",
     "toml>=0.10.2",
     "tyro>=1.0.6",
     "wadler-lindig>=0.1.7",
 ]
+
+[project.scripts]
+svo2="open_svo2._cli:_cli"
 
 [project.optional-dependencies]
 dev = [
