@@ -121,3 +121,22 @@ class StereoIntrinsics:
             rx=cfg["STEREO"][f"RX_{mode}"],
             rz=cfg["STEREO"][f"RZ_{mode}"],
         )
+
+    def as_dict(self) -> dict:
+        """Convert StereoIntrinsics to a dictionary format."""
+        return {
+            "left": {
+                "camera_matrix": self.left.camera_matrix.tolist(),
+                "dist_coeffs": self.left.dist_coeffs.tolist(),
+            },
+            "right": {
+                "camera_matrix": self.right.camera_matrix.tolist(),
+                "dist_coeffs": self.right.dist_coeffs.tolist(),
+            },
+            "baseline": self.baseline,
+            "ty": self.ty,
+            "tz": self.tz,
+            "cv": self.cv,
+            "rx": self.rx,
+            "rz": self.rz,
+        }
