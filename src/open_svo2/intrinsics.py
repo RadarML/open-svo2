@@ -94,16 +94,27 @@ class StereoIntrinsics:
     rz: float
 
     @classmethod
-    def from_config(cls, cfg: dict | str, mode: str) -> Self:
+    def from_config(
+        cls, cfg: dict | str,
+        mode: str | None = None, height: int | None = None
+    ) -> Self:
         """Parse Zed SDK `sensor.conf` contents.
 
         Args:
             cfg: Zed SDK sensor configuration dictionary or path to dictionary.
-            mode: Camera mode (e.g., `FHD1200|FHD|SVGA` for the Zed X)
+            mode: Camera mode (e.g., `FHD1200|FHD|SVGA` for the Zed X).
+            height: Image height in pixels, used to infer mode if mode is not
+                provided. Must be one of {1200, 1080, 600} corresponding to
+                modes {FHD1200, FHD, SVGA} respectively.
         """
         if isinstance(cfg, str):
             with open(cfg, "r") as f:
                 cfg = toml.load(f)
+
+        if mode is None:
+            if height is None:
+                raise ValueError("Either mode or height must be provided")
+            mode = cls.infer_mode(height)
 
         try:
             left = Intrinsics.from_config(cfg[f"LEFT_CAM_{mode}"])
@@ -140,3 +151,15 @@ class StereoIntrinsics:
             "rx": self.rx,
             "rz": self.rz,
         }
+
+    @staticmethod
+    def infer_mode(height: int) -> str:
+        """Infer Zed camera mode from image height."""
+        if height == 1200:
+            return "FHD1200"
+        elif height == 1080:
+            return "FHD"
+        elif height == 600:
+            return "SVGA"
+        else:
+            raise ValueError(f"Unrecognized image height: {height}")
