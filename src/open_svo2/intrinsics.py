@@ -10,7 +10,7 @@ from jaxtyping import Float64
 
 @dataclass
 class Intrinsics:
-    """Camera intrinsic parameters using the Brown-Conrady (OpenCV) model.
+    """Camera intrinsic parameters using the OpenCV distortion model.
 
     This dataclass represents the calibration parameters for a single camera in
     OpenCV-compatible format, ready to be passed directly to OpenCV functions.
@@ -23,10 +23,14 @@ class Intrinsics:
         ```
         where fx/fy are focal lengths in pixels and cx/cy is the principal
         point.
-    - The `dist_coeffs` array contains the distortion coefficients in the order
-        (k1, k2, p1, p2, k3) following OpenCV's standard 5-parameter distortion
-        model:
-        - k1, k2, k3: Radial distortion coefficients (2nd, 4th, 6th order)
+    - The `dist_coeffs` array contains the distortion coefficients in OpenCV
+        order, using either the 8-parameter rational model
+        (k1, k2, p1, p2, k3, k4, k5, k6) or the 5-parameter Brown-Conrady
+        model (k1, k2, p1, p2, k3):
+        - k1, k2, k3: Radial distortion coefficients (numerator, 2nd, 4th,
+          6th order)
+        - k4, k5, k6: Radial distortion coefficients (denominator, 2nd, 4th,
+          6th order; rational model only)
         - p1, p2: Tangential distortion coefficients
 
 
@@ -42,14 +46,18 @@ class Intrinsics:
     """
 
     camera_matrix: Float64[np.ndarray, "3 3"]
-    dist_coeffs: Float64[np.ndarray, "5"]
+    dist_coeffs: Float64[np.ndarray, "n"]
 
     @classmethod
-    def from_config(cls, cfg: dict) -> Self:
+    def from_config(cls, cfg: dict, disto: dict | None = None) -> Self:
         """Create Intrinsics from a parsed configuration dictionary.
 
         Args:
-            cfg: Zed SDK sensor configuration dictionary.
+            cfg: Zed SDK sensor configuration section for a single camera and
+                mode, e.g. `LEFT_CAM_FHD1200`.
+            disto: Zed SDK rational distortion section for the same camera,
+                e.g. `LEFT_DISTO`. If provided, the 8-parameter rational model
+                is used instead of the 5-parameter model in `cfg`.
         """
         camera_matrix = np.array([
             [cfg["fx"], 0.0, cfg["cx"]],
@@ -57,9 +65,15 @@ class Intrinsics:
             [0.0, 0.0, 1.0]
         ], dtype=np.float64,)
 
-        dist_coeffs = np.array(
-            [cfg["k1"], cfg["k2"], cfg["p1"], cfg["p2"], cfg["k3"]],
-            dtype=np.float64)
+        if disto is not None:
+            dist_coeffs = np.array([
+                disto["k1"], disto["k2"], disto["p1"], disto["p2"],
+                disto["k3"], disto["k4"], disto["k5"], disto["k6"]
+            ], dtype=np.float64)
+        else:
+            dist_coeffs = np.array(
+                [cfg["k1"], cfg["k2"], cfg["p1"], cfg["p2"], cfg["k3"]],
+                dtype=np.float64)
 
         return cls(camera_matrix=camera_matrix, dist_coeffs=dist_coeffs)
 
@@ -96,9 +110,19 @@ class StereoIntrinsics:
     @classmethod
     def from_config(
         cls, cfg: dict | str,
-        mode: str | None = None, height: int | None = None
+        mode: str | None = None, height: int | None = None,
+        rational: bool = True
     ) -> Self:
         """Parse Zed SDK `sensor.conf` contents.
+
+        !!! info
+
+            Newer factory calibrations (e.g. the Zed X) include
+            `LEFT_DISTO` / `RIGHT_DISTO` sections containing an 8-parameter
+            rational distortion model, in addition to the 5-parameter model in
+            each `{LEFT|RIGHT}_CAM_{mode}` section. These are separate fits
+            which can differ by several pixels near the image edges; the
+            rational model is used by default when present.
 
         Args:
             cfg: Zed SDK sensor configuration dictionary or path to dictionary.
@@ -106,6 +130,9 @@ class StereoIntrinsics:
             height: Image height in pixels, used to infer mode if mode is not
                 provided. Must be one of {1200, 1080, 600} corresponding to
                 modes {FHD1200, FHD, SVGA} respectively.
+            rational: Use the 8-parameter rational distortion model from the
+                `{LEFT|RIGHT}_DISTO` sections if present. If `False`, or if
+                these sections are missing, the 5-parameter model is used.
         """
         if isinstance(cfg, str):
             with open(cfg, "r") as f:
@@ -116,9 +143,17 @@ class StereoIntrinsics:
                 raise ValueError("Either mode or height must be provided")
             mode = cls.infer_mode(height)
 
+        left_disto = cfg.get("LEFT_DISTO") if rational else None
+        right_disto = cfg.get("RIGHT_DISTO") if rational else None
+        if (left_disto is None) != (right_disto is None):
+            raise ValueError(
+                "Only one of LEFT_DISTO and RIGHT_DISTO is present")
+
         try:
-            left = Intrinsics.from_config(cfg[f"LEFT_CAM_{mode}"])
-            right = Intrinsics.from_config(cfg[f"RIGHT_CAM_{mode}"])
+            left = Intrinsics.from_config(
+                cfg[f"LEFT_CAM_{mode}"], disto=left_disto)
+            right = Intrinsics.from_config(
+                cfg[f"RIGHT_CAM_{mode}"], disto=right_disto)
         except KeyError as e:
             raise ValueError(
                 f"Missing camera configuration for mode '{mode}': {e}") from e
