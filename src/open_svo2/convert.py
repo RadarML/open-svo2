@@ -4,6 +4,7 @@ import base64
 import json
 import logging
 import struct
+from ctypes import sizeof
 from fractions import Fraction
 from typing import Literal
 
@@ -16,6 +17,15 @@ from .imu import IMUData
 from .metadata import FrameFooter, Metadata
 
 logger = logging.getLogger("open_svo2.convert")
+
+
+def _parse_video_message(data: bytes) -> tuple[bytes, FrameFooter]:
+    if len(data) < 8:
+        raise ValueError("SVO2 video message is missing its size header.")
+    _, size = struct.unpack_from("<II", data)
+    if len(data) < 8 + size + sizeof(FrameFooter):
+        raise ValueError("SVO2 video message has a truncated payload or frame footer.")
+    return data[8:8 + size], FrameFooter.from_buffer_copy(data[8 + size:])
 
 
 def detect_codec(sample: bytes) -> Literal["hevc", "h264"]:
@@ -96,11 +106,9 @@ def mp4_from_svo2(
         return np.zeros((), dtype=np.uint32)
 
     _, _, msg = first_msg
-    _, frame_size = struct.unpack("<II", msg.data[:8])
-    payload = msg.data[8 : 8 + frame_size]
+    payload, first_footer = _parse_video_message(msg.data)
     codec_name = detect_codec(payload)
-    start_ts = FrameFooter.from_buffer_copy(
-        msg.data[8 + frame_size:]).timestamp
+    start_ts = first_footer.timestamp
 
     timestamps = []
     keyframes = []
@@ -118,9 +126,7 @@ def mp4_from_svo2(
 
         last_pts = -1
         for i, (_, _, msg) in enumerate(message_generator()):
-            _, size = struct.unpack("<II", msg.data[:8])
-            payload = msg.data[8 : 8 + size]
-            footer = FrameFooter.from_buffer_copy(msg.data[8 + size:])
+            payload, footer = _parse_video_message(msg.data)
             timestamps.append(footer.timestamp)
             keyframes.append(footer.last_keyframe_index)
 
@@ -190,9 +196,7 @@ def raw_from_svo2(
 
     with open(output, "wb") as f:
         for _, _, msg in stream_iter:
-            _, size = struct.unpack("<II", msg.data[:8])
-            payload = msg.data[8 : 8 + size]
-            footer = FrameFooter.from_buffer_copy(msg.data[8 + size:])
+            payload, footer = _parse_video_message(msg.data)
 
             offsets.append(byte_offset)
             timestamps.append(footer.timestamp)

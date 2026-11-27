@@ -56,8 +56,12 @@ Header format: see [`metadata.Header`][open_svo2.metadata.Header] for additional
 
 The footer is a JSON object with one entry for each time series stream (`Camera_SN(?<sn>\d+)/side_by_side`, `Camera_SN(?<sn>\d+)/sensors`, `Camera_SN(?<sn>\d+)/sensors_integrated`).
 
-- Each entry is a base64-encoded array of timestamps for the messages in the corresponding stream.
-- The timestamps are stored as 64-bit integers representing milliseconds since the Unix epoch. These are presumably unsigned integers.
+- Each entry is a JSON array of timestamps for the messages in the corresponding stream.
+- The timestamps are unsigned 64-bit integers representing **nanoseconds since the
+  Unix epoch**. For video, array position corresponds to the original frame index.
+- The decoder checks each video frame's binary footer timestamp against this
+  array. It exposes the timestamp as an integer through `DecodedFrame.timestamp_ns`
+  and preserves it in the image export's CSV, without an epoch float conversion.
 
 ## Video Stream
 
