@@ -1,6 +1,12 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.11"
+
+[manifest]
+members = [
+    "open-svo2",
+    "open-svo2-viewer",
+]
 
 [[package]]
 name = "av"
@@ -681,7 +687,7 @@ wheels = [
 
 [[package]]
 name = "open-svo2"
-version = "0.1.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "av" },
@@ -736,6 +742,26 @@ requires-dist = [
     { name = "wadler-lindig", specifier = ">=0.1.7" },
 ]
 provides-extras = ["dev", "docs"]
+
+[[package]]
+name = "open-svo2-viewer"
+version = "0.1.0"
+source = { editable = "viewer" }
+dependencies = [
+    { name = "open-svo2" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "open-svo2", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "packaging"
