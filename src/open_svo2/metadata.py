@@ -16,7 +16,10 @@ logger = logging.getLogger("opensvo2.metadata")
 
 
 class Header(Structure):
-    """Memory mapping for the SVO2 binary header (128 bytes, 32 fields).
+    """Memory mapping for the common SVO2 binary header prefix (128 bytes, 32 fields).
+
+    Supports 128-byte headers and the 392-byte variant observed in SVO2 2.0.5
+    recordings from ZED SDK 5.4.1. The additional 264 bytes are not interpreted.
 
     !!! info "Field naming conventions"
 
@@ -84,12 +87,12 @@ class Header(Structure):
 
     @classmethod
     def from_base64(cls, data: str) -> Self:
-        """Create an SVO2Header instance from encoded base64."""
+        """Parse the common prefix of a supported base64-encoded SVO2 header."""
         decoded = base64.b64decode(data)
-        if len(decoded) != sizeof(cls):
+        if len(decoded) not in (sizeof(cls), 392):
             raise ValueError(
                 f"Data length {len(decoded)} does not match SVO2Header "
-                f"(requires {sizeof(cls)} bytes).")
+                f"(supported lengths: {sizeof(cls)} or 392 bytes).")
         return cls.from_buffer_copy(decoded)
 
 
@@ -169,8 +172,9 @@ class Metadata:
         gyro_floats = np.frombuffer(calib_gyro_raw, dtype=np.float32)
 
         return cls(
-            imu_frequency=header.get("imu_frequency_hz", 0.0),
-            zed_sdk_version=header.get("zed_sdk_version", "unknown"),
+            imu_frequency=header.get("imu_frequency_hz", header.get("IMU_frequency", 0.0)),
+            zed_sdk_version=header.get(
+                "zed_sdk_version", header.get("ZED_SDK_version", "unknown")),
             header=decoded_header,
             version=header.get("version", "unknown"),
             calib_acc_matrix1=acc_floats[:9].reshape(3, 3),

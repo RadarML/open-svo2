@@ -24,6 +24,14 @@ The header is a JSON object with the following fields:
 - `ZED_SDK_version`: The version of the Zed SDK used to record the SVO as a string (e.g., `"5.0.0"`).
 - `header`: A base64-encoded binary structure.
 
+The reader also accepts `imu_frequency_hz` and `zed_sdk_version` as aliases for
+`IMU_frequency` and `ZED_SDK_version`, respectively.
+
+The binary header has two supported lengths: 128 bytes and 392 bytes. The
+392-byte variant was observed in SVO2 version `2.0.5` recorded by ZED SDK `5.4.1`.
+Both share the 128-byte prefix described below; the additional 264 bytes in the
+extended variant are not yet interpreted. Other lengths are rejected.
+
 Header format: see [`metadata.Header`][open_svo2.metadata.Header] for additional details.
 
 ??? info "Header Format"
